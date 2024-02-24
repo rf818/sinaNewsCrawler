@@ -4,7 +4,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.sql.*;
 
-public final class JdbcCrawlerDao {
+public final class JdbcCrawlerDao implements CrawlerDao {
     private final Connection connection;
 
     @SuppressFBWarnings("DMI_CONSTANT_DB_PASSWORD")
@@ -23,53 +23,45 @@ public final class JdbcCrawlerDao {
         }
     }
 
-    public String selectLink() throws SQLException {
-        ResultSet resultSet = null;
-        try (PreparedStatement statement = connection.prepareStatement("select link from LINK_TO_BE_PROCESSED limit 1")) {
-            resultSet = statement.executeQuery();
-            if (resultSet.next()) {
-                return resultSet.getString(1);
-            }
-        } finally {
-            if (resultSet != null) {
-                resultSet.close();
-            }
-        }
-        return null;
-    }
-
-    public void deleteLink(String link) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("delete from LINK_TO_BE_PROCESSED where link = ?")) {
+    @Override
+    public boolean isProcessedLink(String link) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("select link from LINK_ALREADY_PROCESSED where link = ?")) {
             statement.setString(1, link);
-            statement.execute();
+            ResultSet resultSet = statement.executeQuery();
+            return resultSet.next();
         }
-
     }
 
-    public int countProcessedLink(String link) throws SQLException {
-        ResultSet resultSet = null;
-        try (PreparedStatement statement = connection.prepareStatement("select count(link) from LINK_ALREADY_PROCESSED where link = ?")) {
-            statement.setString(1, link);
-            resultSet = statement.executeQuery();
-            if (resultSet.next()) {
-                return resultSet.getInt(1);
-            }
-        } finally {
-            if (resultSet != null) {
-                resultSet.close();
-            }
-        }
-        return 0;
-    }
-
+    @Override
     public void insertLink(String href) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("insert into LINK_TO_BE_PROCESSED (link)values(?)")) {
+        try (PreparedStatement statement = connection.prepareStatement("insert into LINK_TO_BE_PROCESSED (link) values(?)")) {
             statement.setString(1, href);
             statement.executeUpdate();
         }
     }
 
-    public void insertNews(String link, String title, String content) throws SQLException {
+    @Override
+    public synchronized String getLinkAndDelete() throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("select link from LINK_TO_BE_PROCESSED limit  1")) {
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                String link = resultSet.getString(1);
+                deleteLink(link);
+                return link;
+            }
+            return null;
+        }
+    }
+
+    private void deleteLink(String link) throws SQLException {
+        try (PreparedStatement statementDelete = connection.prepareStatement("delete from LINK_TO_BE_PROCESSED where link = ?")) {
+            statementDelete.setString(1, link);
+            statementDelete.executeUpdate();
+        }
+    }
+
+    @Override
+    public void updateNewsTable(String link, String title, String content) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("insert into NEWS (url,title, content, created_at, modified_at) values (?,?,?, now(), now())")) {
             statement.setString(1, link);
             statement.setString(2, title);
