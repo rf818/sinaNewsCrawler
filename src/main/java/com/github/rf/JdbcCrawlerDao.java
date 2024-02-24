@@ -25,7 +25,7 @@ public final class JdbcCrawlerDao implements CrawlerDao {
 
     @Override
     public boolean isProcessedLink(String link) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("select count(link) from LINK_ALREADY_PROCESSED where (link) = ?")) {
+        try (PreparedStatement statement = connection.prepareStatement("select link from LINK_ALREADY_PROCESSED where link = ?")) {
             statement.setString(1, link);
             ResultSet resultSet = statement.executeQuery();
             return resultSet.next();
@@ -34,7 +34,7 @@ public final class JdbcCrawlerDao implements CrawlerDao {
 
     @Override
     public void insertLink(String href) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("insert into LINK_TO_BE_PROCESSED (link)values(?)")) {
+        try (PreparedStatement statement = connection.prepareStatement("insert into LINK_TO_BE_PROCESSED (link) values(?)")) {
             statement.setString(1, href);
             statement.executeUpdate();
         }

@@ -62,7 +62,6 @@ public class Crawler extends Thread {
                     if (href.startsWith("//")) {
                         href = "https:" + href;
                     }
-
                     crawlerDao.insertLink(href);
                 }
             } catch (SQLException e) {
@@ -72,7 +71,7 @@ public class Crawler extends Thread {
     }
 
     private boolean isInterest(String href) {
-        return ("https://sina.cn".equals(href) || href.contains("news.sina.cn") || href.contains("k.sina.cn")) && !href.contains("passport") && !href.contains("javascript");
+        return ("https://sina.cn".equals(href) || href.contains("news.sina") || href.contains("k.sina")) && !href.contains("passport") && !href.contains("javascript");
     }
 
     private Document startHttpClientAndParseHtml(String link) {
