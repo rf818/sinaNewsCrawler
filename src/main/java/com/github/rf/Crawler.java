@@ -1,5 +1,6 @@
 package com.github.rf;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -14,17 +15,20 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.stream.Collectors;
 
-public class Crawler {
-    private final JdbcCrawlerDao crawlerDao = new JdbcCrawlerDao();
+public class Crawler extends Thread {
+    private final MybatisCrawlerDao crawlerDao;
 
-    public static void main(String[] args) {
-        new Crawler().run();
+    @SuppressFBWarnings("EI_EXPOSE_REP2")
+    public Crawler(MybatisCrawlerDao crawlerDao) {
+        //通过引用同一个对象实现线程安全
+        this.crawlerDao = crawlerDao;
     }
 
+    @Override
     public void run() {
         String link;
         try {
-            while ((link = getLinkThenDelete()) != null) {
+            while ((link = crawlerDao.getLinkAndDelete()) != null) {
                 Document doc = startHttpClientAndParseHtml(link);
                 parseDocumentAndStoreHrefIntoDb(doc);
                 storeArticleIntoDb(doc, link);
@@ -41,7 +45,8 @@ public class Crawler {
             String title = article.select("h1").text();
             String content = article.select("p").stream().map(Element::text).collect(Collectors.joining("\n"));
             try {
-                crawlerDao.insertNews(link, title, content);
+                crawlerDao.updateNewsTable(link, title, content);
+
                 System.out.println(link);
                 System.out.println(title);
             } catch (SQLException e) {
@@ -52,15 +57,16 @@ public class Crawler {
 
     private void parseDocumentAndStoreHrefIntoDb(Document doc) {
         doc.select("a").stream().map(aTag -> aTag.attr("href")).forEach(href -> {
-            if (isInterest(href) && !isProcessed(href)) {
-                try {
+            try {
+                if (isInterest(href) && !crawlerDao.isProcessedLink(href)) {
                     if (href.startsWith("//")) {
                         href = "https:" + href;
                     }
+
                     crawlerDao.insertLink(href);
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
                 }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
         });
     }
@@ -79,27 +85,5 @@ public class Crawler {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private boolean isProcessed(String link) {
-        try {
-            return crawlerDao.countProcessedLink(link) != 0;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private synchronized String getLinkThenDelete() {
-        String link;
-        try {
-            link = crawlerDao.selectLink();
-            if (link != null) {
-                crawlerDao.deleteLink(link);
-                return link;
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-        return null;
     }
 }
