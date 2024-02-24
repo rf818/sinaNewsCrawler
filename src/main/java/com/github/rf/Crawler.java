@@ -1,5 +1,6 @@
 package com.github.rf;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -17,7 +18,9 @@ import java.util.stream.Collectors;
 public class Crawler extends Thread {
     private final MybatisCrawlerDao crawlerDao;
 
+    @SuppressFBWarnings("EI_EXPOSE_REP2")
     public Crawler(MybatisCrawlerDao crawlerDao) {
+        //通过引用同一个对象实现线程安全
         this.crawlerDao = crawlerDao;
     }
 
