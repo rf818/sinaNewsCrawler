@@ -16,10 +16,10 @@ import java.sql.SQLException;
 import java.util.stream.Collectors;
 
 public class Crawler extends Thread {
-    private final MybatisCrawlerDao crawlerDao;
+    private final JdbcCrawlerDao crawlerDao;
 
     @SuppressFBWarnings("EI_EXPOSE_REP2")
-    public Crawler(MybatisCrawlerDao crawlerDao) {
+    public Crawler(JdbcCrawlerDao crawlerDao) {
         //通过引用同一个对象实现线程安全
         this.crawlerDao = crawlerDao;
     }
